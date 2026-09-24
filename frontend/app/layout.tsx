@@ -1,5 +1,7 @@
-import type { Metadata } from "next";
-import "./globals.css";
 
-export const metadata: Metadata = { title: "RAG Chatbot", description: "Document RAG chatbot UI" };
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) { return <html lang="en"><body>{children}</body></html>; }
+import "./globals.css"
+import type { Metadata } from "next"
+export const metadata: Metadata = { title: "RAG Chatbot", description: "Upload docs and chat" }
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return <html lang="en" className="dark"><body className="antialiased bg-[#0a0a0f]">{children}</body></html>
+}

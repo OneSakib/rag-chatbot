@@ -1,30 +1,35 @@
-# RAG Chatbot — Next.js Theme
+# RAG Chatbot - Next.js Theme
 
-A responsive frontend theme for a document-grounded RAG chatbot.
-
-## Features
-- Responsive desktop/mobile layout
-- Dark document/chat-history sidebar
-- Upload document modal
-- Document processing/ready states
-- Chat interface with AI code blocks and Copy affordances
-- Current-document information panel
-- Mobile sidebar drawer
-- Ready to connect to FastAPI/Django + Celery polling APIs
+Premium dark RAG chatbot theme.
 
 ## Run
-
 ```bash
 npm install
 npm run dev
 ```
+Open http://localhost:3000
 
-Open http://localhost:3000.
+## Features implemented
+- Left sidebar: Upload Source (PDF/DOCX/TXT) button
+- Full-page loader with spinner + polling logs for Celery worker flow
+  - POST /api/upload
+  - GET /api/file-status/:id polling simulation
+- Source files list (left)
+- Start Chat + Chat History (left)
+- Center Chatbot with ChatGPT-style code blocks, copy button
+- Mobile responsive with drawer
 
-## Backend integration points
-Replace the demo upload flow with:
-1. `POST /documents/upload` → returns `task_id`
-2. Poll `GET /documents/{id}/status` until `ready`/`failed`
-3. `GET /documents` → sidebar document list
-4. `POST /chats/{chat_id}/messages` → RAG answer
-5. Stream tokens with SSE/WebSocket if desired.
+## Integrate with your backend
+Replace simulateUpload() with real API:
+```ts
+const res = await fetch('/api/upload', {method:'POST', body: formData})
+const {file_id} = await res.json()
+// Poll
+const interval = setInterval(async ()=>{
+  const s = await fetch(`/api/file-status/${file_id}`).then(r=>r.json())
+  if(s.status==='ready') clearInterval(interval)
+}, 1000)
+```
+
+## Stack
+Next.js 14 App Router + Tailwind + lucide-react

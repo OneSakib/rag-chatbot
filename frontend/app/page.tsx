@@ -1,53 +1,184 @@
-"use client";
 
-import { useState } from "react";
-import { DocumentIcon, ArrowUpTrayIcon, PlusIcon, PaperAirplaneIcon, Bars3Icon, XMarkIcon, ClockIcon, CodeBracketIcon, CheckCircleIcon, EllipsisVerticalIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+"use client"
+import { useState, useEffect } from "react"
+import { FileText, File, Upload, MessageSquare, Trash2, X, Loader2, Copy, Check, Plus, History, Menu, Sparkles, FileCode2 } from "lucide-react"
 
-const docs = [
-  {name:"Django Guide.pdf", type:"PDF", size:"2.4 MB", status:"Ready"},
-  {name:"FastAPI_Tutorial.docx", type:"DOCX", size:"1.8 MB", status:"Processing"},
-  {name:"LangChain_Notes.txt", type:"TXT", size:"84 KB", status:"Ready"},
-  {name:"ML_Basics.pdf", type:"PDF", size:"3.1 MB", status:"Ready"},
-  {name:"System_Design.docx", type:"DOCX", size:"1.2 MB", status:"Ready"},
-];
-const history = ["How to create API in Django?","Explaining LangChain RAG","Python multithreading","Docker setup guide","What is vector database?","Explain Kubernetes","Machine Learning basics","React vs Next.js"];
+type SourceFile = { id: string; name: string; size: string; type: "pdf"|"docx"|"txt"; status: "ready"|"processing"|"error" }
+type Chat = { id: string; title: string; time: string }
+type Message = { id: string; role: "user"|"assistant"; content: string }
 
-function IconButton({children, className=""}:{children:React.ReactNode;className?:string}) { return <button className={`grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 ${className}`}>{children}</button> }
+const mockFiles: SourceFile[] = [
+  { id:"1", name:"Product_Requirements.pdf", size:"2.4 MB", type:"pdf", status:"ready" },
+  { id:"2", name:"API_Documentation.docx", size:"1.1 MB", type:"docx", status:"ready" },
+  { id:"3", name:"research_notes.txt", size:"84 KB", type:"txt", status:"ready" },
+]
 
-export default function Home() {
-  const [mobileOpen,setMobileOpen]=useState(false);
-  const [uploading,setUploading]=useState(false);
-  const [message,setMessage]=useState("");
-  const [messages,setMessages]=useState([{role:"user",text:"Can you give me an example of Django REST API with authentication?",time:"10:24 AM"},{role:"ai",text:"Sure! Here is a complete example of a Django REST API with authentication using Django REST Framework (DRF) and Token Authentication.",time:"10:24 AM"}]);
-  const send=()=>{ if(!message.trim())return; const m=message.trim(); setMessages([...messages,{role:"user",text:m,time:"Now"},{role:"ai",text:"Based on your uploaded documents, I can answer this question and include code examples when requested. This response is a UI placeholder for your RAG API.",time:"Now"}]); setMessage(""); };
-  return <div className="min-h-screen bg-[#f7f8fc]">
-    <header className="hidden h-16 border-b border-slate-200 bg-white px-5 md:flex items-center justify-between">
-      <div className="flex items-center gap-3"><div className="grid h-9 w-9 place-items-center rounded-lg bg-indigo-600 text-white"><CodeBracketIcon className="h-5 w-5"/></div><span className="font-bold">RAG Chatbot</span></div>
-      <button onClick={()=>setUploading(true)} className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"><PlusIcon className="h-4 w-4"/>Upload Document</button>
-    </header>
+const mockChats: Chat[] = [
+  { id:"1", title:"Summarize Q3 roadmap", time:"2h ago" },
+  { id:"2", title:"Extract code from API docs", time:"Yesterday" },
+  { id:"3", title:"Key insights from research", time:"2 days ago" },
+]
 
-    <div className="flex h-[calc(100vh-0px)] md:h-[calc(100vh-4rem)]">
-      <aside className={`${mobileOpen?'translate-x-0':'-translate-x-full'} fixed inset-y-0 left-0 z-40 w-[290px] border-r border-slate-200 bg-[#111827] text-white transition-transform md:static md:translate-x-0`}>
-        <div className="flex h-16 items-center justify-between px-5"><div className="flex items-center gap-3"><div className="grid h-8 w-8 place-items-center rounded-lg bg-indigo-500"><CodeBracketIcon className="h-5 w-5"/></div><b>RAG Chatbot</b></div><IconButton className="text-slate-300 hover:bg-slate-800" ><Bars3Icon className="h-5 w-5"/></IconButton></div>
-        <div className="px-4"><button onClick={()=>setUploading(true)} className="flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-500 px-4 py-2.5 text-sm font-semibold shadow-lg hover:bg-indigo-600"><PlusIcon className="h-4 w-4"/>Upload Document</button><button className="mt-2 flex w-full items-center gap-3 rounded-lg border border-slate-700 px-4 py-2.5 text-sm text-slate-200 hover:bg-slate-800"><PlusIcon className="h-4 w-4"/>New Chat</button></div>
-        <div className="mt-6 px-4"><div className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Documents</div>{docs.map((d,i)=><button key={d.name} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm ${i===0?'bg-slate-800':'hover:bg-slate-800'}`}><DocumentIcon className="h-4 w-4 shrink-0 text-slate-300"/><span className="min-w-0 flex-1 truncate">{d.name}</span>{d.status==='Ready'?<span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] text-emerald-300">Ready</span>:<span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] text-amber-300">Processing</span>}</button>)}</div>
-        <div className="mt-5 border-t border-slate-800 px-4 pt-5"><div className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Chat History</div>{history.map((h,i)=><button key={h} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm ${i===0?'bg-slate-800 text-white':'text-slate-300 hover:bg-slate-800'}`}><ClockIcon className="h-4 w-4 shrink-0"/><span className="truncate">{h}</span></button>)}</div>
-        <div className="absolute bottom-0 left-0 right-0 border-t border-slate-800 p-4"><div className="flex items-center gap-3"><div className="grid h-9 w-9 place-items-center rounded-full bg-indigo-500 text-xs font-bold">SM</div><div className="min-w-0"><div className="text-sm font-semibold">Sakib Malik</div><div className="truncate text-xs text-slate-500">sakib@example.com</div></div></div></div>
-      </aside>
-      {mobileOpen&&<div onClick={()=>setMobileOpen(false)} className="fixed inset-0 z-30 bg-black/40 md:hidden"/>}
+export default function Page(){
+  const [files, setFiles] = useState<SourceFile[]>(mockFiles)
+  const [chats, setChats] = useState<Chat[]>(mockChats)
+  const [activeChat, setActiveChat] = useState<string>("1")
+  const [messages, setMessages] = useState<Message[]>([
+    { id:"1", role:"assistant", content:"Hey! I'm your RAG assistant. Upload a PDF, DOCX or TXT and ask anything about it.\n\nTry: \n- \`Summarize this document\`\n- \`Give me code for chunking\`\n\n\n```python\nfrom langchain.document_loaders import PyPDFLoader\nloader = PyPDFLoader('./docs.pdf')\npages = loader.load_and_split()\nprint(f'Loaded {len(pages)} pages')\n```" },
+    { id:"2", role:"user", content:"Summarize the API doc" },
+    { id:"3", role:"assistant", content:"Based on **API_Documentation.docx**, here's the summary:\n\n- REST endpoints under `/api/v1`\n- Auth via Bearer token\n- File upload uses Celery worker\n- Polling endpoint: `GET /api/file-status/:id`\n\nWant code to integrate the polling?" }
+  ])
+  const [input, setInput] = useState("")
+  const [uploading, setUploading] = useState<{show:boolean; name:string; progress:number; logs:string[]}>({show:false, name:"", progress:0, logs:[]})
+  const [showUpload, setShowUpload] = useState(false)
+  const [showDrawer, setShowDrawer] = useState(false)
+  const [copied, setCopied] = useState<string|null>(null)
 
-      <main className="flex min-w-0 flex-1 flex-col">
-        <div className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 md:px-6"><div className="flex items-center gap-3"><button onClick={()=>setMobileOpen(true)} className="grid h-9 w-9 place-items-center rounded-lg hover:bg-slate-100 md:hidden"><Bars3Icon className="h-5 w-5"/></button><DocumentIcon className="h-5 w-5 text-slate-500"/><b className="truncate">Django Guide.pdf</b><span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">Ready</span></div><div className="flex gap-2"><IconButton><MagnifyingGlassIcon className="h-5 w-5"/></IconButton><IconButton><EllipsisVerticalIcon className="h-5 w-5"/></IconButton></div></div>
-        <div className="flex min-h-0 flex-1">
-          <section className="flex min-w-0 flex-1 flex-col bg-white">
-            <div className="chat-scroll flex-1 overflow-y-auto px-4 py-6 md:px-10 lg:px-14">{messages.map((m,i)=><div key={i} className={`mb-7 flex gap-3 ${m.role==='user'?'justify-end':''}`}><div className={`flex max-w-3xl gap-3 ${m.role==='user'?'flex-row-reverse':''}`}><div className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-bold ${m.role==='user'?'bg-indigo-100 text-indigo-700':'bg-indigo-600 text-white'}`}>{m.role==='user'?'SM':'AI'}</div><div><div className={`rounded-2xl px-4 py-3 text-[15px] leading-7 ${m.role==='user'?'bg-indigo-50 text-slate-800':'bg-slate-50 text-slate-700'}`}>{m.text}{m.role==='ai'&&<div className="mt-4 space-y-3"><h3 className="font-bold text-slate-900">1. Install Required Packages</h3><div className="overflow-hidden rounded-xl border border-slate-200 bg-white"><div className="flex items-center justify-between border-b border-slate-200 px-3 py-2 text-xs text-slate-500"><span>bash</span><button className="rounded px-2 py-1 hover:bg-slate-100">Copy</button></div><pre className="code-scroll overflow-x-auto p-4 text-sm leading-6 text-slate-700"><code>pip install django djangorestframework</code></pre></div><h3 className="font-bold text-slate-900">2. Project Structure</h3><div className="overflow-hidden rounded-xl border border-slate-200 bg-white"><div className="flex items-center justify-between border-b border-slate-200 px-3 py-2 text-xs text-slate-500"><span>text</span><button className="rounded px-2 py-1 hover:bg-slate-100">Copy</button></div><pre className="code-scroll overflow-x-auto p-4 text-sm leading-6 text-slate-700"><code>{`myproject/\n├── manage.py\n├── myproject/\n│   └── settings.py\n└── api/\n    ├── models.py\n    ├── views.py\n    ├── urls.py\n    └── serializers.py`}</code></pre></div></div>}</div><div className="mt-1 text-xs text-slate-400">{m.time}</div></div></div></div>)}</div>
-            <div className="border-t border-slate-200 bg-white p-3 md:p-5"><div className="mx-auto flex max-w-4xl items-end gap-2 rounded-2xl border border-slate-300 bg-white p-2 shadow-sm focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-100"><button className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-slate-400 hover:bg-slate-100"><ArrowUpTrayIcon className="h-5 w-5"/></button><textarea value={message} onChange={e=>setMessage(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}}} placeholder="Ask a question about your document..." rows={1} className="max-h-32 min-h-10 flex-1 resize-none border-0 bg-transparent px-2 py-2 text-sm outline-none"/><button onClick={send} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-indigo-600 text-white hover:bg-indigo-700"><PaperAirplaneIcon className="h-5 w-5"/></button></div><p className="mt-2 text-center text-[11px] text-slate-400">This assistant uses your uploaded documents to provide grounded answers.</p></div>
-          </section>
-          <aside className="hidden w-[310px] border-l border-slate-200 bg-slate-50 p-5 xl:block"><div className="text-sm font-bold">Current Document</div><div className="mt-3 rounded-xl border border-slate-200 bg-white p-4"><div className="flex gap-3"><div className="grid h-10 w-10 place-items-center rounded-lg bg-indigo-50 text-indigo-600"><DocumentIcon className="h-5 w-5"/></div><div className="min-w-0"><div className="truncate text-sm font-semibold">Django Guide.pdf</div><div className="text-xs text-slate-500">PDF · 2.4 MB</div></div></div><div className="mt-4 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700"><CheckCircleIcon className="h-4 w-4"/>Indexed and ready for chat</div><div className="mt-5 space-y-3 text-xs"><div className="flex justify-between"><span className="text-slate-500">File Type</span><b>application/pdf</b></div><div className="flex justify-between"><span className="text-slate-500">File Size</span><b>2.4 MB</b></div><div className="flex justify-between"><span className="text-slate-500">Pages</span><b>124</b></div><div className="flex justify-between"><span className="text-slate-500">Chunks</span><b>256</b></div><div className="flex justify-between"><span className="text-slate-500">Embeddings</span><b>text-embedding-3-large</b></div></div></div></aside>
+  const simulateUpload = (fileName: string) => {
+    setShowUpload(false)
+    setUploading({show:true, name:fileName, progress:0, logs:["POST /api/upload -> 200 OK", "file_id: rag_"+Math.random().toString(36).slice(2)]})
+    let p=0
+    const logs = [
+      "Celery worker picked task: process_document",
+      "Extracting text...",
+      "Chunking with 512 tokens...",
+      "Generating embeddings...",
+      "GET /api/file-status/rag_xxx -> pending",
+      "GET /api/file-status/rag_xxx -> processing",
+    ]
+    const iv = setInterval(()=>{
+      p+= Math.random()*18
+      if(p>=100){
+        p=100
+        clearInterval(iv)
+        setTimeout(()=>{
+          setFiles(f=>[{id:Date.now().toString(), name:fileName, size:"1.3 MB", type: fileName.endsWith(".pdf")?"pdf":fileName.endsWith(".docx")?"docx":"txt", status:"ready"}, ...f])
+          setUploading({show:false, name:"", progress:0, logs:[]})
+        },600)
+      }
+      setUploading(prev=>({ ...prev, progress: p, logs: p>20 && prev.logs.length<6 ? [...prev.logs, logs[prev.logs.length-2] || "GET /api/file-status/rag_xxx -> ready"] : prev.logs }))
+    },400)
+  }
+
+  const sendMessage = () => {
+    if(!input.trim()) return
+    const userMsg: Message = { id:Date.now().toString(), role:"user", content:input }
+    setMessages(m=>[...m, userMsg])
+    setInput("")
+    setTimeout(()=>{
+      let reply = ""
+      if(input.toLowerCase().includes("code")){
+        reply = "Here's a clean RAG setup using your uploaded sources:\n\n```python\nimport os\nfrom langchain_community.document_loaders import PyPDFLoader\nfrom langchain_text_splitters import RecursiveCharacterTextSplitter\nfrom langchain_community.vectorstores import Chroma\nfrom langchain_openai import OpenAIEmbeddings\n\n# 1. Load\nloader = PyPDFLoader('./"+files[0]?.name+"')\ndocs = loader.load()\n\n# 2. Split\nsplitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=100)\nchunks = splitter.split_documents(docs)\n\n# 3. Vector store\nvec = Chroma.from_documents(chunks, OpenAIEmbeddings())\n\n# 4. Ask\nq = \""+input+"\"\nresults = vec.similarity_search(q, k=4)\nfor r in results:\n    print(r.page_content[:300])\n```\n\nWant me to adapt it to FastAPI + Celery?"
+      } else {
+        reply = "Based on your "+files.length+" sources, I found relevant context.\n\n**Answer:** The document processing pipeline uses a Celery worker for async upload, status polling via `/api/file-status`, then chunking and embeddings stored in vector DB.\n\nYou can ask me to summarize, extract tables, or generate code."
+      }
+      setMessages(m=>[...m, { id:(Date.now()+1).toString(), role:"assistant", content: reply }])
+    },800)
+  }
+
+  const renderMessage = (m: Message) => {
+    const parts = m.content.split(/(```[\s\S]*?```)/g)
+    return (
+      <div key={m.id} className={"flex gap-3 "+(m.role==="user"?"justify-end":"")}>
+        {m.role==="assistant" && <div className="w-8 h-8 rounded-full bg-[#7c5cff] flex items-center justify-center shrink-0 mt-1"><Sparkles size={16}/></div>}
+        <div className={"max-w-[85%] md:max-w-[75%] rounded-2xl px-4 py-3 text-[14px] leading-6 "+(m.role==="user" ? "bg-[#7c5cff] text-white rounded-br-md" : "bg-[#1a1a24] border border-[#252530] rounded-bl-md")}>
+          {parts.map((part,i)=>{
+            if(part.startsWith("```")){
+              const match = part.match(/```(\w+)?\n?([\s\S]*?)```/)
+              const lang = match?.[1] || "code"
+              const code = match?.[2] || part
+              return (
+                <div key={i} className="my-3 rounded-xl overflow-hidden border border-[#252530] code-block">
+                  <div className="flex items-center justify-between px-3 py-2 bg-[#12121a] text-[12px]"><span className="text-zinc-400">{lang}</span><button onClick={()=>{navigator.clipboard.writeText(code); setCopied(m.id+"-"+i); setTimeout(()=>setCopied(null),1500)}} className="flex gap-1 items-center text-zinc-400 hover:text-white">{copied===m.id+"-"+i?<Check size={14}/>:<Copy size={14}/>}Copy</button></div>
+                  <pre className="p-3 overflow-x-auto text-[13px]"><code>{code}</code></pre>
+                </div>
+              )
+            } else {
+              return <div key={i} className="whitespace-pre-wrap">{part.split(/`([^`]+)`/g).map((s, idx)=> idx%2===1 ? <code key={idx} className="bg-[#252530] px-1.5 py-0.5 rounded text-[12px]">{s}</code> : <span key={idx}>{s}</span>)}</div>
+            }
+          })}
         </div>
-      </main>
-    </div>
+      </div>
+    )
+  }
 
-    {uploading&&<div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/50 p-4"><div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><div className="flex items-center justify-between"><h2 className="text-lg font-bold">Upload Document</h2><button onClick={()=>setUploading(false)} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-slate-100"><XMarkIcon className="h-5 w-5"/></button></div><label className="mt-5 flex cursor-pointer flex-col items-center rounded-xl border-2 border-dashed border-slate-300 px-5 py-10 text-center hover:border-indigo-400"><ArrowUpTrayIcon className="h-9 w-9 text-indigo-500"/><b className="mt-3 text-sm">Drop your file here, or click to browse</b><span className="mt-1 text-xs text-slate-500">PDF, DOCX, TXT and other text files · Max 50 MB</span><input type="file" className="hidden" accept=".pdf,.doc,.docx,.txt" onChange={()=>{setUploading(false);setTimeout(()=>setUploading(true),50)}}/></label><button onClick={()=>setUploading(false)} className="mt-4 w-full rounded-lg bg-indigo-600 py-2.5 text-sm font-semibold text-white">Choose File</button></div></div>}
-  </div>
+  return (
+    <div className="flex h-screen overflow-hidden bg-[#0a0a0f]">
+      {/* Sidebar */}
+      <div className={"fixed md:static z-40 h-full w-[300px] bg-[#12121a] border-r border-[#252530] flex flex-col transition-transform "+(showDrawer ? "translate-x-0" : "-translate-x-full md:translate-x-0")}>
+        <div className="p-5 border-b border-[#252530] flex items-center justify-between">
+          <div className="flex items-center gap-2 font-bold text-[18px]"><div className="w-8 h-8 bg-gradient-to-br from-[#7c5cff] to-[#00d9ff] rounded-lg flex items-center justify-center">R</div>RAG Chatbot</div>
+          <button className="md:hidden" onClick={()=>setShowDrawer(false)}><X size={18}/></button>
+        </div>
+        <div className="p-4 space-y-5 overflow-y-auto flex-1">
+          <button onClick={()=>setShowUpload(true)} className="w-full border-2 border-dashed border-[#252530] hover:border-[#7c5cff]/50 rounded-xl p-4 flex flex-col items-center gap-2 text-sm text-zinc-400 hover:text-white transition"><Upload size={20}/>Upload Source</button>
+          <div>
+            <div className="text-[11px] uppercase tracking-widest text-zinc-500 mb-3">Source Files ({files.length})</div>
+            <div className="space-y-2">{files.map(f=><div key={f.id} className="group flex items-center gap-3 p-2.5 rounded-lg bg-[#1a1a24] border border-[#252530] hover:border-[#7c5cff]/30">
+              <div className="w-8 h-8 rounded bg-[#252530] flex items-center justify-center">{f.type==="pdf"?<FileText size={16} className="text-red-400"/>:f.type==="docx"?<FileCode2 size={16} className="text-blue-400"/>:<File size={16}/>}</div>
+              <div className="flex-1 min-w-0"><div className="text-[13px] truncate">{f.name}</div><div className="text-[11px] text-zinc-500">{f.size} • {f.status}</div></div>
+              <button onClick={()=>setFiles(files.filter(x=>x.id!==f.id))} className="opacity-0 group-hover:opacity-100"><Trash2 size={14} className="text-zinc-500 hover:text-red-400"/></button>
+            </div>)}</div>
+          </div>
+          <button onClick={()=>{setMessages([]); setActiveChat(""); setChats(c=>[{id:Date.now().toString(), title:"New conversation", time:"now"}, ...c])}} className="w-full bg-[#1a1a24] border border-[#252530] rounded-xl p-3 flex items-center justify-center gap-2 text-sm hover:bg-[#252530]"><Plus size={16}/>Start New Chat</button>
+          <div>
+            <div className="text-[11px] uppercase tracking-widest text-zinc-500 mb-3 flex items-center gap-2"><History size={12}/> Chat History</div>
+            <div className="space-y-1">{chats.map(ch=><button key={ch.id} onClick={()=>setActiveChat(ch.id)} className={"w-full text-left p-2.5 rounded-lg text-[13px] "+(activeChat===ch.id?"bg-[#7c5cff]/20 border border-[#7c5cff]/30 text-white":"hover:bg-[#1a1a24] text-zinc-400")}><div className="truncate">{ch.title}</div><div className="text-[11px] opacity-60">{ch.time}</div></button>)}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main */}
+      <div className="flex-1 flex flex-col">
+        <div className="md:hidden p-3 border-b border-[#252530] flex items-center gap-3"><button onClick={()=>setShowDrawer(true)}><Menu/></button><span className="font-semibold">RAG Chatbot</span></div>
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
+          {messages.length===0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-center max-w-xl mx-auto mt-20">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#7c5cff] to-[#00d9ff] flex items-center justify-center mb-6"><MessageSquare/></div>
+              <h1 className="text-2xl font-bold mb-2">Chat with your documents</h1>
+              <p className="text-zinc-400 text-sm mb-6">Upload PDF, DOCX, TXT files on the left and ask questions. Powered by RAG + Celery workers.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 w-full">{["Summarize this document","Give me code for chunking","What are key insights?","Extract tables as JSON"].map(s=><button key={s} onClick={()=>setInput(s)} className="p-3 rounded-xl bg-[#1a1a24] border border-[#252530] text-sm text-left hover:border-[#7c5cff]/30">{s}</button>)}</div>
+            </div>
+          ) : messages.map(renderMessage)}
+        </div>
+        <div className="p-4 border-t border-[#252530] bg-[#12121a]/80 backdrop-blur">
+          <div className="max-w-3xl mx-auto">
+            <div className="flex gap-2 flex-wrap mb-2">{files.slice(0,3).map(f=><span key={f.id} className="text-[11px] px-2 py-1 rounded-full bg-[#1a1a24] border border-[#252530]">{f.name}</span>)}</div>
+            <div className="flex items-end gap-3 bg-[#1a1a24] border border-[#252530] rounded-2xl p-2">
+              <textarea value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault(); sendMessage()}}} placeholder="Ask about your documents..." className="flex-1 bg-transparent resize-none outline-none text-sm min-h-[40px] max-h-[120px] p-2" rows={1}/>
+              <button onClick={sendMessage} className="w-9 h-9 rounded-xl bg-[#7c5cff] flex items-center justify-center hover:bg-[#6a4de6]"><span className="text-white">↑</span></button>
+            </div>
+            <div className="text-[11px] text-zinc-500 mt-2 text-center">RAG uses Celery worker for file processing • status polling at /api/file-status</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Upload Modal */}
+      {showUpload && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur flex items-center justify-center p-4">
+          <div className="bg-[#1a1a24] border border-[#252530] rounded-2xl w-full max-w-md p-6">
+            <div className="flex justify-between items-center mb-5"><h3 className="font-semibold">Upload Source</h3><button onClick={()=>setShowUpload(false)}><X size={18}/></button></div>
+            <div onClick={()=>{const inp=document.createElement('input'); inp.type='file'; inp.accept='.pdf,.docx,.txt,.md'; inp.onchange=(e:any)=>{const f=e.target.files[0]?.name; if(f) simulateUpload(f)}; inp.click()}} className="border-2 border-dashed border-[#252530] rounded-xl p-8 text-center cursor-pointer hover:border-[#7c5cff]/50">
+              <Upload className="mx-auto mb-3 text-zinc-500"/><p className="text-sm">Drop PDF, DOCX, TXT here</p><p className="text-xs text-zinc-500 mt-1">or click to browse</p>
+            </div>
+            <div className="mt-4 text-[11px] text-zinc-500">Files are processed async via Celery worker. You'll see full-page loader with polling.</div>
+          </div>
+        </div>
+      )}
+
+      {/* Full page loader - Celery */}
+      {uploading.show && (
+        <div className="fixed inset-0 z-[60] bg-[#0a0a0f]/90 backdrop-blur-xl flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-[#12121a] border border-[#252530] rounded-2xl p-8 text-center">
+            <Loader2 className="animate-spin mx-auto mb-4 text-[#7c5cff]" size={32}/>
+            <h3 className="font-semibold mb-1">Processing {uploading.name}</h3>
+            <p className="text-xs text-zinc-400 mb-5">Uploading via Celery worker • Please wait</p>
+            <div className="h-2 bg-[#1a1a24] rounded-full overflow-hidden mb-4"><div className="h-full bg-gradient-to-r from-[#7c5cff] to-[#00d9ff] transition-all" style={{width: uploading.progress+"%"}} /></div>
+            <div className="bg-[#0a0a0f] rounded-lg p-3 text-left font-mono text-[11px] space-y-1 max-h-32 overflow-y-auto">{uploading.logs.map((l,i)=><div key={i} className="text-zinc-400">› {l}</div>)}</div>
+            <div className="mt-4 text-[11px] text-zinc-500">API: GET /api/file-status/{uploading.name} • {Math.round(uploading.progress)}%</div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
