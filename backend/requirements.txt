@@ -1,0 +1,10 @@
+fastapi
+langchain
+langchain-openai
+langgraph
+pyjwt
+pydantic-settings
+python-multipart
+python-dotenv
+langsmith
+
