@@ -4,7 +4,7 @@ celery_app = Celery(
     "worker",
     broker="redis://127.0.0.1:6379/0",
     backend="redis://127.0.0.1:6379/0",  # for storing results
-    # include=["worker.tasks"],
+    include=["app.worker.tasks"],
 )
 
 celery_app.conf.update(
@@ -16,4 +16,4 @@ celery_app.conf.update(
     enable_utc=True,
 )
 
-celery_app.autodiscover_tasks(["worker"])
+celery_app.autodiscover_tasks(["app"])

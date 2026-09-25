@@ -10,6 +10,6 @@ langsmith
 celery 
 redis==4.6.0
 flower
-sqlalalchemy
-psqcopg2-binary
+sqlalchemy
+psycopg2-binary
 alembic
