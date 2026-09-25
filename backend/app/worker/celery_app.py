@@ -2,8 +2,8 @@ from celery import Celery
 
 celery_app = Celery(
     "worker",
-    broker="redis://127.0.0.1:6379/0",
-    backend="redis://127.0.0.1:6379/0",  # for storing results
+    broker="redis://redis:6379/0",
+    backend="redis://redis:6379/0",  # for storing results
     include=["app.worker.tasks"],
 )
 
