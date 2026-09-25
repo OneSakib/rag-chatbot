@@ -19,11 +19,10 @@ def process_document(
         doc = db.query(Document).filter(Document.id == doc_id).first()
         if not doc:
             return
-
-        if file_type == "pdf":
+        if file_type == "application/pdf":
             documents = load_document(file_path)
         else:
-            raise ValueError(f"Unsupported file type: {file_type}")
+            return {"error": f"Unsupported file type: {file_type}"}
 
         doc.status = "processing"
         db.commit()
@@ -48,6 +47,9 @@ def process_document(
             "file": file_path,
             "chunks": len(chunks),
         }
+        # return {
+        #     "status": "completed",
+        # }
     except Exception as e:
         doc = db.query(Document).filter(Document.id == doc_id).first()
         if doc:

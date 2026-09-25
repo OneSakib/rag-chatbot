@@ -1,11 +1,10 @@
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
-from core.config import settings
-
-api_key:SecretStr =settings.openai_api_key
+from pydantic import SecretStr
+from app.core.config import settings
 
 embeddings = OpenAIEmbeddings(
-    model="text-embedding-3-small", api_key=api_key
+    model="text-embedding-3-small", api_key=settings.openai_api_key
 )
 vector_store = Chroma(
     collection_name="documents",

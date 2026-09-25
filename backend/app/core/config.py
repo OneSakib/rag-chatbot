@@ -1,6 +1,6 @@
 from functools import lru_cache
 from typing import Any
-
+from pydantic import SecretStr
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     allowed_hosts: list[str] = ["*"]
     log_level: str = "INFO"
     upload_dir: str = "uploads"
-    openai_api_key:str=""
+    openai_api_key: SecretStr = SecretStr("*")
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
