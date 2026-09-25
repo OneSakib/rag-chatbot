@@ -12,10 +12,9 @@
 ## For migrations
 
 ```bash
-    alembic revision --autogenerate -m "create documents table"
-    alembic upgrade head
-    alembic current          # which migration you are on
-    alembic history          # list all
-    alembic downgrade -1     # undo last
-    alembic upgrade head     # apply all
+    docker compose exec api alembic revision --autogenerate -m "create documents table"
+    docker compose exec api alembic upgrade head
+    docker compose exec api alembic current          # which migration you are on
+    docker compose exec api alembic history          # list all
+    docker compose exec api alembic downgrade -1     # undo last
 ```

@@ -7,7 +7,7 @@ import os
 from celery.result import AsyncResult
 from app.worker.tasks import process_document
 from app.worker.celery_app import celery_app
-from app.models.ingestion import Document
+from app.models.document import Document
 from app.db.session import get_db
 from sqlalchemy.sql import func
 from sqlalchemy.orm import Session
@@ -45,7 +45,7 @@ async def upload_source(file: UploadFile = File("..."), db: Session = Depends(ge
     db.add(doc)
     db.commit()
     db.refresh(doc)
-    task = process_document.delay(file_path, doc.id)
+    task = process_document.delay(file_path, doc.id, file.content_type)
     return {
         "task_id": task.id,
         "filename": file.filename,

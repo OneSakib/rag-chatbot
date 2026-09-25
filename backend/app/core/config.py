@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     allowed_hosts: list[str] = ["*"]
     log_level: str = "INFO"
     upload_dir: str = "uploads"
+    openai_api_key:str=""
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

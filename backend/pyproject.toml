@@ -26,6 +26,11 @@ dependencies = [
     "redis==4.6.0",
     "flower>=2.2.0",
     "psycopg2-binary>=2.9.13",
+    "langchain-community>=0.4.2",
+    "langchain-text-splitters>=1.1.2",
+    "langchain-chroma>=1.1.0",
+    "pypdf>=6.19.0",
+    "openpyxl>=3.1.5",
 ]
 
 [project.optional-dependencies]
