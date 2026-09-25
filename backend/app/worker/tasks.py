@@ -16,6 +16,7 @@ def process_document(
 ):
     db = SessionLocal()
     try:
+        self.update_state(state="PROGRESS", meta={"progress": 10})
         doc = db.query(Document).filter(Document.id == doc_id).first()
         if not doc:
             return
@@ -26,6 +27,7 @@ def process_document(
 
         doc.status = "processing"
         db.commit()
+        self.update_state(state="PROGRESS", meta={"progress": 20})
 
         chunks = text_splitter.split_documents(documents)
 
@@ -40,8 +42,10 @@ def process_document(
         doc.status = "processing"
         db.commit()
         vector_store.add_documents(chunks)
+        self.update_state(state="PROGRESS", meta={"progress": 80})
         doc.status = "completed"
         db.commit()
+        self.update_state(state="PROGRESS", meta={"progress": 100})
         return {
             "status": "completed",
             "file": file_path,
