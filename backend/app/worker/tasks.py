@@ -24,13 +24,13 @@ def process_document(
             documents = load_document(file_path)
         else:
             return {"error": f"Unsupported file type: {file_type}"}
-
+        print("documents:", len(documents))
         doc.status = "processing"
         db.commit()
         self.update_state(state="PROGRESS", meta={"progress": 20})
 
         chunks = text_splitter.split_documents(documents)
-
+        print("Chunks:", len(chunks))
         for index, chunk in enumerate(chunks):
             chunk.metadata.update(
                 {
