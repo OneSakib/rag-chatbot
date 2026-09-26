@@ -2,8 +2,9 @@ from app.models.document import Document
 from app.db.session import SessionLocal
 from .celery_app import celery_app
 import time
+from uuid import uuid4
 from app.services.document_loader import load_document
-from app.services.vector_store import vector_store
+from app.services.vector_store import get_vector_store
 from app.services.chunker import text_splitter
 
 
@@ -41,7 +42,12 @@ def process_document(
         self.update_state(state="PROGRESS", meta={"progress": 50})
         doc.status = "processing"
         db.commit()
-        vector_store.add_documents(chunks)
+        print("CHUNKS:", len(chunks), flush=True)
+        uuids = [str(uuid4()) for _ in chunks]
+        print("Before vector_store.add_documents()", flush=True)
+        vector_store = get_vector_store()
+        vector_store.add_documents(documents=chunks, ids=uuids)
+        print("After vector_store.add_documents()", flush=True)
         self.update_state(state="PROGRESS", meta={"progress": 80})
         doc.status = "completed"
         db.commit()
@@ -51,9 +57,6 @@ def process_document(
             "file": file_path,
             "chunks": len(chunks),
         }
-        # return {
-        #     "status": "completed",
-        # }
     except Exception as e:
         doc = db.query(Document).filter(Document.id == doc_id).first()
         if doc:

@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from typing import Any
 
 
 class AskChat(BaseModel):
@@ -7,3 +8,4 @@ class AskChat(BaseModel):
 
 class ResponseChat(BaseModel):
     response: str
+    sources: Any
