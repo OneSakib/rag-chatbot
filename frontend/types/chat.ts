@@ -6,11 +6,6 @@ export interface Chat {
   time: string;
 }
 
-export interface Message {
-  id: string;
-  role: MessageRole;
-  content: string;
-}
 export interface ChatRequest {
   query: string;
 }
@@ -36,6 +31,33 @@ export interface ChatSource {
 }
 
 export interface ChatResponse {
-  response: string;
+  type: "token" | "sources" | "done";
+  response?: string;
+  sources?: ChatSource[];
+}
+
+export interface ChatStreamToken {
+  type: "token";
+  content: string;
+}
+
+export interface ChatStreamSources {
+  type: "sources";
   sources: ChatSource[];
+}
+
+export interface ChatStreamDone {
+  type: "done";
+}
+
+export type ChatStreamEvent =
+  | ChatStreamToken
+  | ChatStreamSources
+  | ChatStreamDone;
+
+export interface Message {
+  id: string;
+  role: MessageRole;
+  content: string;
+  sources?: ChatSource[];
 }

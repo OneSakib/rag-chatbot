@@ -6,6 +6,7 @@ from sqlalchemy import engine_from_config, pool
 from app.db.base import Base
 from app.db.session import DATABASE_URL
 from app.models.document import Document
+from app.models.chat_history import ChatSession, ChatMessage
 
 config = context.config
 config.set_main_option("sqlalchemy.url", DATABASE_URL)

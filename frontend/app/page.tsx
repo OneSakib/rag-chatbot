@@ -26,11 +26,7 @@ export default function Page() {
   const [files, setFiles] = useState<Document[]>([])
   const [chats, setChats] = useState<Chat[]>(mockChats)
   const [activeChat, setActiveChat] = useState<string>("1")
-  const [messages, setMessages] = useState<Message[]>([
-    { id: "1", role: "assistant", content: "Hey! I'm your RAG assistant. Upload a PDF, DOCX or TXT and ask anything about it.\n\nTry: \n- \`Summarize this document\`\n- \`Give me code for chunking\`\n\n\n```python\nfrom langchain.document_loaders import PyPDFLoader\nloader = PyPDFLoader('./docs.pdf')\npages = loader.load_and_split()\nprint(f'Loaded {len(pages)} pages')\n```" },
-    { id: "2", role: "user", content: "Summarize the API doc" },
-    { id: "3", role: "assistant", content: "Based on **API_Documentation.docx**, here's the summary:\n\n- REST endpoints under `/api/v1`\n- Auth via Bearer token\n- File upload uses Celery worker\n- Polling endpoint: `GET /api/file-status/:id`\n\nWant code to integrate the polling?" }
-  ])
+  const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [uploading, setUploading] = useState<{ show: boolean; name: string; progress: number; logs: string[] }>({ show: false, name: "", progress: 0, logs: [] })
   const [showUpload, setShowUpload] = useState(false)
@@ -79,32 +75,277 @@ export default function Page() {
     const userMsg: Message = { id: Date.now().toString(), role: "user", content: input }
     setMessages(m => [...m, userMsg])
     setInput("")
+    const assistantId = (Date.now() + 1).toString()
+    setMessages((m) => [
+      ...m,
+      {
+        id: assistantId,
+        role: 'assistant',
+        content: '',
+        sources: []
+      }
+    ])
     const data: ChatRequest = { query: input }
-    const response: ChatResponse = await askQuestion(data)
-    setMessages(m => [...m, { id: (Date.now() + 1).toString(), role: "assistant", content: response.response }])
+    try {
+      const response = await askQuestion(data)
+      if (!response.ok) {
+        throw new Error(`Request failed: ${response.status}`)
+      }
+
+      if (!response.body) {
+        throw new Error("Response body is empty")
+      }
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ""
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) {
+          break
+        }
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ""
+
+        for (const line of lines) {
+          if (!line.trim()) {
+            continue
+          }
+          try {
+            const event = JSON.parse(line)
+            if (event.type == 'sources') {
+              setMessages((messages) =>
+                messages.map((message) =>
+                  message.id === assistantId
+                    ? {
+                      ...message,
+                      sources: event.sources,
+                    }
+                    : message
+                )
+              )
+            }
+            else if (event.type == 'token') {
+              setMessages((messages) =>
+                messages.map((message) =>
+                  message.id === assistantId
+                    ? {
+                      ...message,
+                      content: message.content + event.content,
+                    }
+                    : message
+                )
+              )
+            }
+            else if (event.type == 'done') {
+              console.log("DONE")
+            }
+          }
+          catch (error) {
+            console.error("Invalid stream JSON:", line, error)
+          }
+        }
+        // Process any remaining buffered data
+        if (buffer.trim()) {
+          try {
+            const event = JSON.parse(buffer)
+
+            if (event.type === "token") {
+              setMessages((messages) =>
+                messages.map((message) =>
+                  message.id === assistantId
+                    ? {
+                      ...message,
+                      content: message.content + event.content,
+                    }
+                    : message
+                )
+              )
+            }
+          } catch (error) {
+            console.error("Invalid final stream data:", buffer, error)
+          }
+        }
+      }
+    }
+    catch (error) {
+      console.log("Ask error", error)
+    }
   }
 
   const renderMessage = (m: Message) => {
     const parts = m.content.split(/(```[\s\S]*?```)/g)
+
     return (
-      <div key={m.id} className={"flex gap-3 " + (m.role === "user" ? "justify-end" : "")}>
-        {m.role === "assistant" && <div className="w-8 h-8 rounded-full bg-[#7c5cff] flex items-center justify-center shrink-0 mt-1"><Sparkles size={16} /></div>}
-        <div className={"max-w-[85%] md:max-w-[75%] rounded-2xl px-4 py-3 text-[14px] leading-6 " + (m.role === "user" ? "bg-[#7c5cff] text-white rounded-br-md" : "bg-[#1a1a24] border border-[#252530] rounded-bl-md")}>
+      <div
+        key={m.id}
+        className={
+          "flex gap-3 " +
+          (m.role === "user" ? "justify-end" : "")
+        }
+      >
+        {/* Assistant icon */}
+        {m.role === "assistant" && (
+          <div className="w-8 h-8 rounded-full bg-[#7c5cff] flex items-center justify-center shrink-0 mt-1">
+            <Sparkles size={16} />
+          </div>
+        )}
+
+        <div
+          className={
+            "max-w-[85%] md:max-w-[75%] rounded-2xl px-4 py-3 text-[14px] leading-6 " +
+            (m.role === "user"
+              ? "bg-[#7c5cff] text-white rounded-br-md"
+              : "bg-[#1a1a24] border border-[#252530] rounded-bl-md")
+          }
+        >
+          {/* ========================= */}
+          {/* MESSAGE CONTENT */}
+          {/* ========================= */}
+
           {parts.map((part, i) => {
             if (part.startsWith("```")) {
-              const match = part.match(/```(\w+)?\n?([\s\S]*?)```/)
+              const match = part.match(
+                /```(\w+)?\n?([\s\S]*?)```/
+              )
+
               const lang = match?.[1] || "code"
               const code = match?.[2] || part
+
               return (
-                <div key={i} className="my-3 rounded-xl overflow-hidden border border-[#252530] code-block">
-                  <div className="flex items-center justify-between px-3 py-2 bg-[#12121a] text-[12px]"><span className="text-zinc-400">{lang}</span><button onClick={() => { navigator.clipboard.writeText(code); setCopied(m.id + "-" + i); setTimeout(() => setCopied(null), 1500) }} className="flex gap-1 items-center text-zinc-400 hover:text-white">{copied === m.id + "-" + i ? <Check size={14} /> : <Copy size={14} />}Copy</button></div>
-                  <pre className="p-3 overflow-x-auto text-[13px]"><code>{code}</code></pre>
+                <div
+                  key={i}
+                  className="my-3 rounded-xl overflow-hidden border border-[#252530] code-block"
+                >
+                  <div className="flex items-center justify-between px-3 py-2 bg-[#12121a] text-[12px]">
+                    <span className="text-zinc-400">
+                      {lang}
+                    </span>
+
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(code)
+                        setCopied(m.id + "-" + i)
+
+                        setTimeout(
+                          () => setCopied(null),
+                          1500
+                        )
+                      }}
+                      className="flex gap-1 items-center text-zinc-400 hover:text-white"
+                    >
+                      {copied === m.id + "-" + i ? (
+                        <Check size={14} />
+                      ) : (
+                        <Copy size={14} />
+                      )}
+
+                      Copy
+                    </button>
+                  </div>
+
+                  <pre className="p-3 overflow-x-auto text-[13px]">
+                    <code>{code}</code>
+                  </pre>
                 </div>
               )
-            } else {
-              return <div key={i} className="whitespace-pre-wrap">{part.split(/`([^`]+)`/g).map((s, idx) => idx % 2 === 1 ? <code key={idx} className="bg-[#252530] px-1.5 py-0.5 rounded text-[12px]">{s}</code> : <span key={idx}>{s}</span>)}</div>
             }
+
+            return (
+              <div
+                key={i}
+                className="whitespace-pre-wrap"
+              >
+                {part
+                  .split(/`([^`]+)`/g)
+                  .map((s, idx) =>
+                    idx % 2 === 1 ? (
+                      <code
+                        key={idx}
+                        className="bg-[#252530] px-1.5 py-0.5 rounded text-[12px]"
+                      >
+                        {s}
+                      </code>
+                    ) : (
+                      <span key={idx}>{s}</span>
+                    )
+                  )}
+              </div>
+            )
           })}
+
+          {/* ========================= */}
+          {/* SOURCES */}
+          {/* ========================= */}
+
+          {m.role === "assistant" &&
+            m.sources &&
+            m.sources.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-[#252530]">
+                <div className="flex items-center gap-2 mb-2">
+                  <FileText
+                    size={14}
+                    className="text-[#7c5cff]"
+                  />
+
+                  <span className="text-xs font-medium text-zinc-300">
+                    Sources
+                  </span>
+
+                  <span className="text-[10px] text-zinc-500">
+                    ({m.sources.length})
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  {m.sources.map((source) => (
+                    <div
+                      key={source.id}
+                      className="rounded-lg bg-[#12121a] border border-[#252530] p-2.5"
+                    >
+                      {/* Source title */}
+                      <div className="flex items-start gap-2">
+                        <FileText
+                          size={14}
+                          className="text-zinc-500 mt-0.5 shrink-0"
+                        />
+
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs text-zinc-300 truncate">
+                            {source.metadata.title ||
+                              source.metadata.source
+                                ?.split("/")
+                                .pop() ||
+                              "Document"}
+                          </div>
+
+                          {/* Page + chunk */}
+                          <div className="flex items-center gap-2 mt-1 text-[10px] text-zinc-500">
+                            {source.metadata.page_label && (
+                              <span>
+                                Page {source.metadata.page_label}
+                              </span>
+                            )}
+
+                            {source.metadata.chunk_index !== undefined && (
+                              <span>
+                                • Chunk {source.metadata.chunk_index}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Source content */}
+                      <div className="mt-2 text-[11px] leading-5 text-zinc-500 line-clamp-3">
+                        {source.page_content}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
         </div>
       </div>
     )

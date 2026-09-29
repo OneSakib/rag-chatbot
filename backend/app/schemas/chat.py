@@ -4,6 +4,7 @@ from typing import Any
 
 class AskChat(BaseModel):
     query: str
+    session_id: str
 
 
 class ResponseChat(BaseModel):
