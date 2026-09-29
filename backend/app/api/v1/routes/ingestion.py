@@ -11,6 +11,7 @@ from app.models.document import Document
 from app.db.session import get_db
 from sqlalchemy.sql import func
 from sqlalchemy.orm import Session
+from app.services.vector_store import get_vector_store
 
 router = APIRouter(prefix="/ingestion", tags=["Ingestion"])
 
@@ -44,7 +45,7 @@ async def upload_source(file: UploadFile = File("..."), db: Session = Depends(ge
     )
     db.add(doc)
     db.commit()
-    db.refresh(doc) 
+    db.refresh(doc)
     task = process_document.delay(file_path, doc.id, file.content_type)
     return {
         "task_id": task.id,
@@ -82,6 +83,35 @@ def get_count(db: Session = Depends(get_db)):
 @router.get("/documents")
 def list_docs(db: Session = Depends(get_db)):
     return db.query(Document).order_by(Document.created_at.desc()).all()
+
+
+@router.delete("/document/{doc_id}")
+def delete_document(doc_id: int, db: Session = Depends(get_db)):
+    doc = db.query(Document).filter(Document.id == doc_id).first()
+    if not doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Document with id {doc_id} not found",
+        )
+
+    try:
+        vector_store = get_vector_store()
+        db.delete(doc)
+        db.commit()
+        # Delete from the vector store
+        vector_store._collection.delete(where={"document_id": str(doc_id)})
+        if doc.file_path and os.path.exists(doc.file_path):
+            os.remove(doc.file_path)
+        return {
+            "message": "Document and vectors deleted successfully",
+            "doc_id": doc_id,
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete document: {str(e)}",
+        )
 
 
 @router.get("/task-status/{task_id}")

@@ -2,14 +2,19 @@
 "use client"
 import { useState, useEffect } from "react"
 import { FileText, File, Upload, MessageSquare, Trash2, X, Loader2, Copy, Check, Plus, History, Menu, Sparkles, FileCode2 } from "lucide-react"
+import {
+  getDocuments, deleteDocuments
+} from "@/services/ingestion";
 
-type SourceFile = { id: string; name: string; size: string; type: "pdf" | "docx" | "txt"; status: "ready" | "processing" | "error" }
-type Chat = { id: string; title: string; time: string }
-type Message = { id: string; role: "user" | "assistant"; content: string }
+import { askQuestion } from '@/services/chat'
+import type {
+  Document,
+  Chat,
+  Message, ChatRequest,
+  ChatResponse
+} from "@/types";
 
-const mockFiles: SourceFile[] = [
-  { id: "1", name: "Product_Requirements.pdf", size: "2.4 MB", type: "pdf", status: "ready" },
-]
+
 
 const mockChats: Chat[] = [
   { id: "1", title: "Summarize Q3 roadmap", time: "2h ago" },
@@ -18,7 +23,7 @@ const mockChats: Chat[] = [
 ]
 
 export default function Page() {
-  const [files, setFiles] = useState<SourceFile[]>()
+  const [files, setFiles] = useState<Document[]>([])
   const [chats, setChats] = useState<Chat[]>(mockChats)
   const [activeChat, setActiveChat] = useState<string>("1")
   const [messages, setMessages] = useState<Message[]>([
@@ -31,10 +36,17 @@ export default function Page() {
   const [showUpload, setShowUpload] = useState(false)
   const [showDrawer, setShowDrawer] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
-
   useEffect(() => {
-    console.log("useEffect")
-    setFiles(mockFiles)
+    const loadStats = async () => {
+      try {
+        const data = await getDocuments();
+        setFiles(data)
+      } catch (error) {
+        console.error("Failed to fetch document stats:", error);
+      }
+    };
+
+    loadStats();
   }, [])
   const simulateUpload = (fileName: string) => {
     setShowUpload(false)
@@ -54,7 +66,7 @@ export default function Page() {
         p = 100
         clearInterval(iv)
         setTimeout(() => {
-          setFiles(f => [{ id: Date.now().toString(), name: fileName, size: "1.3 MB", type: fileName.endsWith(".pdf") ? "pdf" : fileName.endsWith(".docx") ? "docx" : "txt", status: "ready" }, ...f])
+          // setFiles(f => [{ id: Date.now().toString(), name: fileName, size: "1.3 MB", type: fileName.endsWith(".pdf") ? "pdf" : fileName.endsWith(".docx") ? "docx" : "txt", status: "ready" }, ...f])
           setUploading({ show: false, name: "", progress: 0, logs: [] })
         }, 600)
       }
@@ -62,20 +74,14 @@ export default function Page() {
     }, 400)
   }
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!input.trim()) return
     const userMsg: Message = { id: Date.now().toString(), role: "user", content: input }
     setMessages(m => [...m, userMsg])
     setInput("")
-    setTimeout(() => {
-      let reply = ""
-      if (input.toLowerCase().includes("code")) {
-        reply = "Here's a clean RAG setup using your uploaded sources:\n\n```python\nimport os\nfrom langchain_community.document_loaders import PyPDFLoader\nfrom langchain_text_splitters import RecursiveCharacterTextSplitter\nfrom langchain_community.vectorstores import Chroma\nfrom langchain_openai import OpenAIEmbeddings\n\n# 1. Load\nloader = PyPDFLoader('./" + files[0]?.name + "')\ndocs = loader.load()\n\n# 2. Split\nsplitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=100)\nchunks = splitter.split_documents(docs)\n\n# 3. Vector store\nvec = Chroma.from_documents(chunks, OpenAIEmbeddings())\n\n# 4. Ask\nq = \"" + input + "\"\nresults = vec.similarity_search(q, k=4)\nfor r in results:\n    print(r.page_content[:300])\n```\n\nWant me to adapt it to FastAPI + Celery?"
-      } else {
-        reply = "Based on your " + files.length + " sources, I found relevant context.\n\n**Answer:** The document processing pipeline uses a Celery worker for async upload, status polling via `/api/file-status`, then chunking and embeddings stored in vector DB.\n\nYou can ask me to summarize, extract tables, or generate code."
-      }
-      setMessages(m => [...m, { id: (Date.now() + 1).toString(), role: "assistant", content: reply }])
-    }, 800)
+    const data: ChatRequest = { query: input }
+    const response: ChatResponse = await askQuestion(data)
+    setMessages(m => [...m, { id: (Date.now() + 1).toString(), role: "assistant", content: response.response }])
   }
 
   const renderMessage = (m: Message) => {
@@ -103,7 +109,15 @@ export default function Page() {
       </div>
     )
   }
-
+  const deleteDocument = async (doc_id: number) => {
+    try {
+      await deleteDocuments(doc_id)
+      setFiles(files.filter(x => x.id !== doc_id))
+    }
+    catch (error) {
+      console.log("Error:", error)
+    }
+  }
   return (
     <div className="flex h-screen overflow-hidden bg-[#0a0a0f]">
       {/* Sidebar */}
@@ -117,9 +131,11 @@ export default function Page() {
           <div>
             <div className="text-[11px] uppercase tracking-widest text-zinc-500 mb-3">Source Files ({files.length})</div>
             <div className="space-y-2">{files.map(f => <div key={f.id} className="group flex items-center gap-3 p-2.5 rounded-lg bg-[#1a1a24] border border-[#252530] hover:border-[#7c5cff]/30">
-              <div className="w-8 h-8 rounded bg-[#252530] flex items-center justify-center">{f.type === "pdf" ? <FileText size={16} className="text-red-400" /> : f.type === "docx" ? <FileCode2 size={16} className="text-blue-400" /> : <File size={16} />}</div>
-              <div className="flex-1 min-w-0"><div className="text-[13px] truncate">{f.name}</div><div className="text-[11px] text-zinc-500">{f.size} • {f.status}</div></div>
-              <button onClick={() => setFiles(files.filter(x => x.id !== f.id))} className="opacity-0 group-hover:opacity-100"><Trash2 size={14} className="text-zinc-500 hover:text-red-400" /></button>
+              <div className="w-8 h-8 rounded bg-[#252530] flex items-center justify-center">
+                <FileText size={16} className="text-red-400" />
+              </div>
+              <div className="flex-1 min-w-0"><div className="text-[13px] truncate">{f.file_name}</div><div className="text-[11px] text-zinc-500">{f.file_size} • {f.status}</div></div>
+              <button onClick={() => deleteDocument(f.id)} className="opacity-0 group-hover:opacity-100"><Trash2 size={14} className="text-zinc-500 hover:text-red-400" /></button>
             </div>)}</div>
           </div>
           <button onClick={() => { setMessages([]); setActiveChat(""); setChats(c => [{ id: Date.now().toString(), title: "New conversation", time: "now" }, ...c]) }} className="w-full bg-[#1a1a24] border border-[#252530] rounded-xl p-3 flex items-center justify-center gap-2 text-sm hover:bg-[#252530]"><Plus size={16} />Start New Chat</button>
@@ -145,7 +161,7 @@ export default function Page() {
         </div>
         <div className="p-4 border-t border-[#252530] bg-[#12121a]/80 backdrop-blur">
           <div className="max-w-3xl mx-auto">
-            <div className="flex gap-2 flex-wrap mb-2">{files.slice(0, 3).map(f => <span key={f.id} className="text-[11px] px-2 py-1 rounded-full bg-[#1a1a24] border border-[#252530]">{f.name}</span>)}</div>
+            <div className="flex gap-2 flex-wrap mb-2">{files.slice(0, 3).map(f => <span key={f.id} className="text-[11px] px-2 py-1 rounded-full bg-[#1a1a24] border border-[#252530]">{f.file_name}</span>)}</div>
             <div className="flex items-end gap-3 bg-[#1a1a24] border border-[#252530] rounded-2xl p-2">
               <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage() } }} placeholder="Ask about your documents..." className="flex-1 bg-transparent resize-none outline-none text-sm min-h-[40px] max-h-[120px] p-2" rows={1} />
               <button onClick={sendMessage} className="w-9 h-9 rounded-xl bg-[#7c5cff] flex items-center justify-center hover:bg-[#6a4de6]"><span className="text-white">↑</span></button>
