@@ -1,5 +1,20 @@
 export type MessageRole = "user" | "assistant";
 
+export interface Message {
+  id: string;
+  role: MessageRole;
+  content: string;
+  created_at?: string;
+  session_id?: string;
+}
+
+export interface CreateSessionResponse {
+  session_id: string;
+}
+
+export interface ChatResponse {
+  answer: string;
+}
 export interface Chat {
   id: string;
   title: string;
@@ -8,6 +23,7 @@ export interface Chat {
 
 export interface ChatRequest {
   query: string;
+  session_id: string;
 }
 
 export interface SourceMetadata {
@@ -60,4 +76,11 @@ export interface Message {
   role: MessageRole;
   content: string;
   sources?: ChatSource[];
+}
+
+export interface ChatSession {
+  id: string;
+  title: string;
+  created_at?: string;
+  updated_at?: string;
 }

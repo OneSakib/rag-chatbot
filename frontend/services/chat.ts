@@ -1,5 +1,5 @@
 import api from "./api";
-import { ChatRequest, ChatStreamEvent } from "@/types";
+import { ChatRequest, ChatStreamEvent, ChatSession, Message } from "@/types";
 
 // export const askQuestion = async (
 //   data: ChatRequest,
@@ -21,4 +21,29 @@ export const askQuestion = async (data: ChatRequest): Promise<Response> => {
     },
   );
   return response;
+};
+
+export const createChatSession = async (): Promise<ChatSession> => {
+  const response = await api.post<ChatSession>("/api/v1/chat/sessions");
+
+  return response.data;
+};
+export const getChatSessions = async (): Promise<Array<ChatSession>> => {
+  const response = await api.get<Array<ChatSession>>("/api/v1/chat/sessions");
+
+  return response.data;
+};
+export const getSessionMessages = async (
+  session_id: string,
+): Promise<Array<Message>> => {
+  const response = await api.get<Array<Message>>(
+    "/api/v1/chat/sessions/" + session_id + "/messages",
+  );
+
+  return response.data;
+};
+export const sendChatMessage = async (): Promise<Array<ChatSession>> => {
+  const response = await api.get<Array<ChatSession>>("/api/v1/chat/sessions");
+
+  return response.data;
 };
